@@ -10,14 +10,17 @@ async function scrapeFacebookPost(url) {
   // Wait for the post content to load (you may need to adjust the selector)
   await page.waitForSelector('div[data-ad-comet-preview="message"]');
 
-  const postContent = await page.evaluate(() => {
-    const postElement = document.querySelector('div[data-ad-comet-preview="message"]');
-    return postElement ? postElement.innerText : 'Post content not found.';
-  });
+  const postContentElement = await page.$('div[data-ad-comet-preview="message"]');
+  const postContent = await page.evaluate(element => {
+    return element ? element.innerText : 'Post content not found.';
+  }, postContentElement);
 
   await browser.close();
 
-  return { url, postContent };
+  // Remove special characters and newlines
+  const cleanedPostContent = postContent.replace(/[^\w\s.]/gi, '').replace(/\n/g, ' ');
+
+  return { url, postContent: cleanedPostContent };
 }
 
 const url = process.argv[2]; // Get the URL from the command line arguments
