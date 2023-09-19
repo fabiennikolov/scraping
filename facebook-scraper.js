@@ -1,5 +1,6 @@
 const puppeteer = require('puppeteer');
 const fs = require('fs');
+const path = require('path');
 
 async function scrapeFacebookPost(url) {
   const browser = await puppeteer.launch({ headless: 'new' });
@@ -14,14 +15,9 @@ async function scrapeFacebookPost(url) {
     return postElement ? postElement.innerText : 'Post content not found.';
   });
 
-  const scrapedData = {
-    url,
-    postContent
-  };
-
   await browser.close();
 
-  return scrapedData;
+  return { url, postContent };
 }
 
 const url = process.argv[2]; // Get the URL from the command line arguments
@@ -34,9 +30,14 @@ if (!url) {
 if (url.includes('facebook.com')) {
   scrapeFacebookPost(url)
     .then(data => {
+      const timestamp = new Date().toISOString().replace(/:/g, '-'); // Generate a unique timestamp
+      const filename = `facebook_data_${timestamp}.json`;
+      const filePath = path.join(__dirname, filename);
+
       const jsonData = JSON.stringify(data, null, 2);
-      fs.writeFileSync('scraped_data.json', jsonData);
-      console.log('Data saved to scraped_data.json');
+      fs.writeFileSync(filePath, jsonData);
+
+      console.log(`Data saved to ${filename}`);
     })
     .catch(error => console.error('Error scraping data:', error));
 } else {
