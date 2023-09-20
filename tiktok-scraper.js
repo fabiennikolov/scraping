@@ -5,9 +5,15 @@ const fs = require('fs');
 
 async function downloadImage(imageUrl, imageName) {
   const response = await axios.get(imageUrl, { responseType: 'stream' });
-  const imagePath = path.join(__dirname, imageName);
+  const timestamp = new Date().toISOString().replace(/:/g, '-');
+  const dir = `${__dirname}/output/${timestamp}`
+
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
 
   return new Promise((resolve, reject) => {
+    const imagePath = `${dir}/${imageName}`
     const fileStream = fs.createWriteStream(imagePath);
     response.data.pipe(fileStream);
 
@@ -39,53 +45,48 @@ async function scrapeTikTokPost(url) {
     console.log('Avatar image not found.');
   }
 
-  const postContentSelector = 'h1[data-e2e="browse-video-desc"]';
-  const likesCountSelector = 'strong[data-e2e="like-count"]';
-  const commentCountSelector = 'strong[data-e2e="comment-count"]';
-  const postSavesCountSelector = 'strong[data-e2e="undefined-count"]';
-  const shareCountSelector = 'strong[data-e2e="share-count"]';
 
-  await page.waitForSelector(postContentSelector);
-  await page.waitForSelector(likesCountSelector);
-  await page.waitForSelector(commentCountSelector);
-  await page.waitForSelector(postSavesCountSelector);
-  await page.waitForSelector(shareCountSelector);
+  const selectors = {
+    username: 'span[data-e2e="browse-username"]',
+    postContent: 'h1[data-e2e="browse-video-desc"]',
+    likesCount: 'strong[data-e2e="like-count"]',
+    commentCount: 'strong[data-e2e="comment-count"]',
+    postSavesCount: 'strong[data-e2e="undefined-count"]',
+    shareCount: 'strong[data-e2e="share-count"]',
 
-  const postContentElement = await page.$(postContentSelector);
-  const likesCountElement = await page.$(likesCountSelector);
-  const commentCountElement = await page.$(commentCountSelector);
-  const postSavesCountElement = await page.$(postSavesCountSelector);
-  const shareCountElement = await page.$(shareCountSelector);
+  }
 
-  const postContent = await page.evaluate(element => {
-    return element ? element.innerText : 'TikTok post content not found.';
-  }, postContentElement);
+  const data = {}
 
-  const likesCount = await page.evaluate(element => {
-    return element ? element.innerText : 'Likes count not found.';
-  }, likesCountElement);
+  for(const key of Object.keys(selectors)) {
+    await page.waitForSelector(selectors[key]);
 
-  const commentCount = await page.evaluate(element => {
-    return element ? element.innerText : 'Comment count not found.';
-  }, commentCountElement);
+    const element = await page.$(selectors[key])
 
-  const postSavesCount = await page.evaluate(element => {
-    return element ? element.innerText : 'Post saves count not found.';
-  }, postSavesCountElement);
-
-  const shareCount = await page.evaluate(element => {
-    return element ? element.innerText : 'Share count not found.';
-  }, shareCountElement);
+    data[key] = await page.evaluate(
+      element =>  element ? element.innerText : 'Not found', 
+      element
+    )
+  }
 
   await browser.close();
 
-  return {
-    postContent,
-    likesCount,
-    commentCount,
-    postSavesCount,
-    shareCount,
-  };
+  return data
+}
+
+function metricToNumber(metric) {
+  const prefixes = {'K': 1000, 'M': 1000000, 'B': 1000000000}
+
+  const regex = new RegExp(`^[0-9]*\.?[0-9]+(${Object.keys(prefixes).join('|')})$`)
+
+  if(regex.test(metric)){
+    const number = Number(metric.slice(0, -1))
+    const base = prefixes[metric.at(-1)]
+    return number * base
+  }
+  else {
+    return Number(metric)
+  }
 }
 
 const url = process.argv[2];
@@ -97,15 +98,31 @@ if (!url) {
 
 if (url.includes('tiktok.com')) {
   scrapeTikTokPost(url)
-    .then(data => {
-      const timestamp = new Date().toISOString().replace(/:/g, '-');
-      const filename = `tiktok_data_${timestamp}.json`;
-      const filePath = path.join(__dirname, filename);
+    .then(async (data) => {
+      const serverUrl = 'https://postinfotwoserver.herokuapp.com/post'
 
-      const jsonData = JSON.stringify(data, null, 2);
-      fs.writeFileSync(filePath, jsonData);
 
-      console.log(`Data saved to ${filename}`);
+      const response = await axios.post(
+        serverUrl, 
+        [{
+          type: 1,
+          URL: url,
+          likes: metricToNumber(data.likesCount),
+          comments: metricToNumber(data.commentCount),
+          shares: metricToNumber(data.shareCount),
+          page:data.username,
+          text: data.postContent,
+          date: '2020-01-01',
+          show_after: '2020-01-01',
+          source: 'Tiktok'
+        }], 
+        {
+          headers: {
+            'Content-Type': 'application/json; charset=UTF-8'
+          }
+        }
+      )
+      console.log(response)
     })
     .catch(error => console.error('Error scraping data:', error));
 } else {
