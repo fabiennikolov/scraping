@@ -20,11 +20,11 @@ async function downloadImage(imageUrl, imageName) {
 }
 
 async function scrapeTikTokPost(url) {
-  const browser = await puppeteer.launch({ headless: 'new' });
+  const browser = await puppeteer.launch({ headless: false });
   const page = await browser.newPage();
   await page.goto(url);
 
-  const avatarImageSelector = '.tiktok-1zpj2q-ImgAvatar';
+  const avatarImageSelector = 'a[data-e2e="browse-user-avatar"] img';
 
   const avatarImageElement = await page.$(avatarImageSelector);
   const avatarImageUrl = await page.evaluate(element => {
@@ -39,11 +39,11 @@ async function scrapeTikTokPost(url) {
     console.log('Avatar image not found.');
   }
 
-  const postContentSelector = '.tiktok-j2a19r-SpanText';
-  const likesCountSelector = '.tiktok-n6wn07-StrongText';
-  const commentCountSelector = '.tiktok-n6wn07-StrongText[data-e2e="comment-count"]';
-  const postSavesCountSelector = '.tiktok-n6wn07-StrongText[data-e2e="undefined-count"]';
-  const shareCountSelector = '.tiktok-n6wn07-StrongText[data-e2e="share-count"]';
+  const postContentSelector = 'h1[data-e2e="browse-video-desc"]';
+  const likesCountSelector = 'strong[data-e2e="like-count"]';
+  const commentCountSelector = 'strong[data-e2e="comment-count"]';
+  const postSavesCountSelector = 'strong[data-e2e="undefined-count"]';
+  const shareCountSelector = 'strong[data-e2e="share-count"]';
 
   await page.waitForSelector(postContentSelector);
   await page.waitForSelector(likesCountSelector);
