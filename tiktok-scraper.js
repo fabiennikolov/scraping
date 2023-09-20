@@ -20,7 +20,7 @@ async function downloadImage(imageUrl, imageName) {
 }
 
 async function scrapeTikTokPost(url) {
-  const browser = await puppeteer.launch({ headless: false });
+  const browser = await puppeteer.launch({ headless: 'new' });
   const page = await browser.newPage();
   await page.goto(url);
 
