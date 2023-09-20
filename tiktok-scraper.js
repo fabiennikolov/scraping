@@ -5,9 +5,15 @@ const fs = require('fs');
 
 async function downloadImage(imageUrl, imageName) {
   const response = await axios.get(imageUrl, { responseType: 'stream' });
-  const imagePath = path.join(__dirname, imageName);
+  const timestamp = new Date().toISOString().replace(/:/g, '-');
+  const dir = `${__dirname}/output/${timestamp}`
+
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
 
   return new Promise((resolve, reject) => {
+    const imagePath = `${dir}/${imageName}`
     const fileStream = fs.createWriteStream(imagePath);
     response.data.pipe(fileStream);
 
